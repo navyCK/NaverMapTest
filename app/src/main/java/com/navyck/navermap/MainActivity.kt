@@ -2,14 +2,18 @@ package com.navyck.navermap
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Log
 import androidx.viewpager2.widget.ViewPager2
 import com.naver.maps.geometry.LatLng
-import com.naver.maps.map.CameraUpdate
-import com.naver.maps.map.MapView
-import com.naver.maps.map.NaverMap
-import com.naver.maps.map.OnMapReadyCallback
+import com.naver.maps.map.*
 import com.naver.maps.map.util.FusedLocationSource
 import com.naver.maps.map.widget.LocationButtonView
+import com.navyck.navermap.retrofit.HouseDto
+import com.navyck.navermap.retrofit.HouseService
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import retrofit2.Retrofit
 
 class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
@@ -64,8 +68,42 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         mapView.onLowMemory()
     }
 
-    companion object {
-        private const val LOCATION_PERMISSION_REQUEST_CODE = 1000
+    private fun getHouseListFromAPI() {
+        val retrofit = Retrofit.Builder()
+                .baseUrl("http://openapi.kepco.co.kr/service/EvInfoServiceV2/getEvSearchList")
+                .addConverterFactory(retrofit2.converter.gson.GsonConverterFactory.create())
+                .build()
+
+        retrofit.create(HouseService::class.java).also {
+            it.getHouseList()
+                    .enqueue(object : Callback<HouseDto> {
+                        override fun onResponse(call: Call<HouseDto>, response: Response<HouseDto>) {
+                            if (response.isSuccessful.not()) {
+                                Log.d("Retrofit", "실패1")
+                                return
+                            }
+
+
+                        }
+
+                        override fun onFailure(call: Call<HouseDto>, t: Throwable) {
+                            TODO("Not yet implemented")
+                        }
+                    })
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != LOCATION_PERMISSION_REQUEST_CODE)
+            return
+
+        if (locationSource.onRequestPermissionsResult(requestCode, permissions, grantResults)) {
+            if (!locationSource.isActivated) {
+                naverMap.locationTrackingMode = LocationTrackingMode.None
+            }
+            return
+        }
     }
 
     override fun onMapReady(map: NaverMap) {
@@ -90,12 +128,16 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 FusedLocationSource(this@MainActivity, LOCATION_PERMISSION_REQUEST_CODE)
         naverMap.locationSource = locationSource
 
-        // 지도 다 로드 이후에 가져오기
-        getHouseListFromAPI()
+//        // 지도 다 로드 이후에 가져오기
+//        getHouseListFromAPI()
     }
 
-    private fun getHouseListFromAPI() {
-        TODO("Not yet implemented")
+    companion object {
+        private const val LOCATION_PERMISSION_REQUEST_CODE = 1000
     }
+
+//    private fun getHouseListFromAPI() {
+//        TODO("Not yet implemented")
+//    }
 
 }
