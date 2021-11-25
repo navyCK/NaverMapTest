@@ -1,29 +1,72 @@
 package com.navyck.navermap
 
+import HouseListAdapter
+import HouseViewPagerAdapter
+import android.annotation.SuppressLint
+import android.content.Intent
+import android.graphics.Color
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
+import android.widget.TextView
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import com.naver.maps.geometry.LatLng
 import com.naver.maps.map.*
+import com.naver.maps.map.overlay.Marker
+import com.naver.maps.map.overlay.Overlay
 import com.naver.maps.map.util.FusedLocationSource
+import com.naver.maps.map.util.MarkerIcons
 import com.naver.maps.map.widget.LocationButtonView
 import com.navyck.navermap.retrofit.HouseDto
+import com.navyck.navermap.retrofit.HouseModel
 import com.navyck.navermap.retrofit.HouseService
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 import retrofit2.Retrofit
 
-class MainActivity : AppCompatActivity(), OnMapReadyCallback {
+class MainActivity : AppCompatActivity(), OnMapReadyCallback, Overlay.OnClickListener {
 
     private lateinit var naverMap: NaverMap
     private lateinit var locationSource: FusedLocationSource
 
     private val mapView: MapView by lazy { findViewById(R.id.mapView)}
 
-    private val currentLocationButton: LocationButtonView by lazy { findViewById(R.id.currentLocationButton) }
+    private val viewPager: ViewPager2 by lazy { findViewById(R.id.houseViewPager) }
+    private val viewPagerAdapter = HouseViewPagerAdapter(itemClicked = {
+        onHouseModelClicked(houseModel = it)
+    })
 
+    private val recyclerView: RecyclerView by lazy { findViewById(R.id.recyclerView) }
+    private val recyclerViewAdapter = HouseListAdapter()
+
+    private fun initHouseRecyclerView() {
+        recyclerView.adapter = recyclerViewAdapter
+        recyclerView.layoutManager = LinearLayoutManager(this)
+    }
+
+    private fun onHouseModelClicked(houseModel: HouseModel) {
+        // 공유 기능 : createChooser
+        val intent = Intent()
+                .apply {
+                    action = Intent.ACTION_SEND
+                    putExtra(
+                            Intent.EXTRA_TEXT,
+                            "[지금 이 가격에 예약하세요!!]\n" +
+                                    "숙소 이름 : ${houseModel.title}\n" +
+                                    "숙소 가격 : ${houseModel.price}\n" +
+                                    "숙소 사진 : ${houseModel.imgUrl}",
+                    )
+                    type = "text/plain"
+                }
+        startActivity(Intent.createChooser(intent, null))
+    }
+
+
+    private val currentLocationButton: LocationButtonView by lazy { findViewById(R.id.currentLocationButton) }
+    private val bottomSheetTitleTextView: TextView by lazy { findViewById(R.id.bottomSheetTitleTextView) }
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -31,6 +74,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         setContentView(R.layout.activity_main)
 
         mapView.getMapAsync(this)
+        initHouseViewPager()
+        initHouseRecyclerView()
     }
 
     override fun onStart() {
@@ -68,28 +113,65 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         mapView.onLowMemory()
     }
 
+    private fun initHouseViewPager() {
+        viewPager.adapter = viewPagerAdapter
+
+        // page 변경시 처리
+        viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) {
+                super.onPageSelected(position)
+
+                val selectedHouseModel = viewPagerAdapter.currentList[position]
+                val cameraUpdate =
+                        CameraUpdate.scrollTo(LatLng(selectedHouseModel.lat, selectedHouseModel.lng))
+                                .animate(CameraAnimation.Easing)
+                naverMap.moveCamera(cameraUpdate)
+            }
+        })
+    }
+
     private fun getHouseListFromAPI() {
         val retrofit = Retrofit.Builder()
-                .baseUrl("http://openapi.kepco.co.kr/service/EvInfoServiceV2/getEvSearchList")
+                .baseUrl("https://run.mocky.io/")
                 .addConverterFactory(retrofit2.converter.gson.GsonConverterFactory.create())
                 .build()
 
         retrofit.create(HouseService::class.java).also {
             it.getHouseList()
                     .enqueue(object : Callback<HouseDto> {
+                        @SuppressLint("SetTextI18n")
                         override fun onResponse(call: Call<HouseDto>, response: Response<HouseDto>) {
                             if (response.isSuccessful.not()) {
                                 Log.d("Retrofit", "실패1")
                                 return
                             }
-
-
+                            // 성공한 경우 아래 처리
+                            response.body()?.let { dto ->
+                                updateMarker(dto.items)
+                                viewPagerAdapter.submitList(dto.items)
+                                recyclerViewAdapter.submitList(dto.items)
+                                bottomSheetTitleTextView.text = "${dto.items.size}개의 숙소"
+                            }
                         }
 
                         override fun onFailure(call: Call<HouseDto>, t: Throwable) {
-                            TODO("Not yet implemented")
+                            // 실패 처리 구현;
+                            Log.d("Retrofit", "실패2")
+                            Log.d("Retrofit", t.stackTraceToString())
                         }
                     })
+        }
+    }
+
+    private fun updateMarker(houses: List<HouseModel>) {
+        houses.forEach { house ->
+            val marker = Marker()
+            marker.position = LatLng(house.lat, house.lng)
+            marker.onClickListener = this
+            marker.map = naverMap
+            marker.tag = house.id
+            marker.icon = MarkerIcons.BLACK
+            marker.iconTintColor = Color.RED
         }
     }
 
@@ -128,16 +210,24 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 FusedLocationSource(this@MainActivity, LOCATION_PERMISSION_REQUEST_CODE)
         naverMap.locationSource = locationSource
 
-//        // 지도 다 로드 이후에 가져오기
-//        getHouseListFromAPI()
+        // 지도 다 로드 이후에 가져오기
+        getHouseListFromAPI()
     }
 
     companion object {
         private const val LOCATION_PERMISSION_REQUEST_CODE = 1000
     }
 
-//    private fun getHouseListFromAPI() {
-//        TODO("Not yet implemented")
-//    }
+    // 지도 marker 클릭 시
+    override fun onClick(overlay: Overlay): Boolean {
+        val selectedModel = viewPagerAdapter.currentList.firstOrNull {
+            it.id == overlay.tag
+        }
+        selectedModel?.let {
+            val position = viewPagerAdapter.currentList.indexOf(it)
+            viewPager.currentItem = position
+        }
+        return true
+    }
 
 }
