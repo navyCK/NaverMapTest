@@ -48,7 +48,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, Overlay.OnClickLis
     }
 
     private fun onHouseModelClicked(houseModel: HouseModel) {
-        // 공유 기능 : createChooser
         val intent = Intent()
                 .apply {
                     action = Intent.ACTION_SEND
@@ -116,7 +115,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, Overlay.OnClickLis
     private fun initHouseViewPager() {
         viewPager.adapter = viewPagerAdapter
 
-        // page 변경시 처리
         viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 super.onPageSelected(position)
@@ -145,7 +143,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, Overlay.OnClickLis
                                 Log.d("Retrofit", "실패1")
                                 return
                             }
-                            // 성공한 경우 아래 처리
                             response.body()?.let { dto ->
                                 updateMarker(dto.items)
                                 viewPagerAdapter.submitList(dto.items)
@@ -155,7 +152,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, Overlay.OnClickLis
                         }
 
                         override fun onFailure(call: Call<HouseDto>, t: Throwable) {
-                            // 실패 처리 구현;
                             Log.d("Retrofit", "실패2")
                             Log.d("Retrofit", t.stackTraceToString())
                         }
@@ -191,26 +187,21 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, Overlay.OnClickLis
     override fun onMapReady(map: NaverMap) {
         naverMap = map
 
-        // 줌 범위 설정
         naverMap.maxZoom = 18.0
         naverMap.minZoom = 10.0
 
-        // 지도 위치 이동
         val cameraUpdate = CameraUpdate.scrollTo(LatLng(37.497801, 127.027591))
         naverMap.moveCamera(cameraUpdate)
 
-        // 현위치 버튼 기능
         val uiSetting = naverMap.uiSettings
-        uiSetting.isLocationButtonEnabled = false // 뷰 페이져에 가려져 이후 레이아웃에 정의 하였음.
+        uiSetting.isLocationButtonEnabled = false
 
-        currentLocationButton.map = naverMap // 이후 정의한 현위치 버튼에 네이버맵 연결
+        currentLocationButton.map = naverMap
 
-        // -> onRequestPermissionsResult // 위치 권한 요청
         locationSource =
                 FusedLocationSource(this@MainActivity, LOCATION_PERMISSION_REQUEST_CODE)
         naverMap.locationSource = locationSource
 
-        // 지도 다 로드 이후에 가져오기
         getHouseListFromAPI()
     }
 
@@ -218,7 +209,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, Overlay.OnClickLis
         private const val LOCATION_PERMISSION_REQUEST_CODE = 1000
     }
 
-    // 지도 marker 클릭 시
     override fun onClick(overlay: Overlay): Boolean {
         val selectedModel = viewPagerAdapter.currentList.firstOrNull {
             it.id == overlay.tag
