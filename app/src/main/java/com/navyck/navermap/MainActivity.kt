@@ -14,6 +14,7 @@ import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import com.naver.maps.geometry.LatLng
 import com.naver.maps.map.*
+import com.naver.maps.map.overlay.InfoWindow
 import com.naver.maps.map.overlay.Marker
 import com.naver.maps.map.overlay.Overlay
 import com.naver.maps.map.util.FusedLocationSource
@@ -48,19 +49,23 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, Overlay.OnClickLis
     }
 
     private fun onHouseModelClicked(houseModel: HouseModel) {
-        val intent = Intent()
-                .apply {
-                    action = Intent.ACTION_SEND
-                    putExtra(
-                            Intent.EXTRA_TEXT,
-                            "[지금 이 가격에 예약하세요!!]\n" +
-                                    "숙소 이름 : ${houseModel.title}\n" +
-                                    "숙소 가격 : ${houseModel.price}\n" +
-                                    "숙소 사진 : ${houseModel.imgUrl}",
-                    )
-                    type = "text/plain"
-                }
-        startActivity(Intent.createChooser(intent, null))
+//        val intent = Intent()
+//                .apply {
+//                    action = Intent.ACTION_SEND
+//                    putExtra(
+//                            Intent.EXTRA_TEXT,
+//                            "[지금 이 가격에 예약하세요!!]\n" +
+//                                    "숙소 이름 : ${houseModel.title}\n" +
+//                                    "숙소 가격 : ${houseModel.price}\n" +
+//                                    "숙소 사진 : ${houseModel.imgUrl}",
+//                    )
+//                    type = "text/plain"
+//                }
+//        startActivity(Intent.createChooser(intent, null))
+
+        val intent = Intent(this, DetailActivity::class.java)
+        startActivity(intent)
+
     }
 
 
@@ -166,8 +171,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, Overlay.OnClickLis
             marker.onClickListener = this
             marker.map = naverMap
             marker.tag = house.id
-            marker.icon = MarkerIcons.BLACK
-            marker.iconTintColor = Color.RED
+//            marker.icon = MarkerIcons.BLACK
+//            marker.iconTintColor = Color.RED
+//            marker.width = 50
+//            marker.height = 60
         }
     }
 
