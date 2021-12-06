@@ -28,8 +28,6 @@ class HouseListAdapter :
             Glide.with(thumbnailImageView.context)
                     .load(houseModel.imgUrl)
                     .transform(CenterCrop(), RoundedCorners(dp2px(thumbnailImageView.context, 12)))
-                    // centerCrop : 실제 이미지가 이미지뷰의 사이즈보다 클 때, 이미지뷰의 크기에 맞춰 이미지 중간부분을 잘라서 스케일링한다.
-                    // RoundedCorners : 픽셀 단위로 둥글게. -> 변환함수 구현.
                     .into(thumbnailImageView)
 
         }
